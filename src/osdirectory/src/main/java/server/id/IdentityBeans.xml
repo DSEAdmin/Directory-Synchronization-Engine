@@ -1,0 +1,1249 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    Version: MPL 1.1
+  
+   The contents of this file are subject to the Mozilla Public License Version
+   1.1 (the "License"); you may not use this file except in compliance with
+    the License. You may obtain a copy of the License at
+    http://www.mozilla.org/MPL/
+  
+   Software distributed under the License is distributed on an "AS IS" basis,
+   WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+   for the specific language governing rights and limitations under the
+   License.
+  
+   The Original Code is the Directory Synchronization Engine(DSE).
+  
+   The Initial Developer of the Original Code is IronKey, Inc.
+   Portions created by the Initial Developer are Copyright (C) 2011
+   the Initial Developer. All Rights Reserved.
+  
+   Contributor(s): Shirish Rai
+  
+-->
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:jaxws="http://cxf.apache.org/jaxws" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="
+                http://www.springframework.org/schema/beans
+                http://www.springframework.org/schema/beans/spring-beans.xsd
+                http://cxf.apache.org/jaxws http://cxf.apache.org/schemas/jaxws.xsd">
+
+	<bean id="identityDAOFactory" lazy-init="true"
+		class="server.id.dao.IdentityDAOFactoryImpl">
+		<property name="deploymentType" value="AGENT" />
+	</bean>
+
+	<bean id="kerberosConfigManager" lazy-init="true"
+		class="server.id.krb.KrbConfigManager">
+		<property name="timeout" value="1000"></property>
+	</bean>
+
+	<bean id="cryptoService" lazy-init="false"
+		class="server.id.crypto.CryptoService" init-method="init" />
+ 
+	<bean id="adFilterSpec" lazy-init="true"
+		class="server.id.ldap.FilterSpec">
+		<property name="userFilter">
+			<value>(&amp;(objectclass=Person)(!(objectclass=computer)))</value>
+		</property>
+		<property name="groupFilter">
+			<value>(objectclass=group)</value>
+		</property>
+		<property name="containerFilter">
+			<value>(|(objectclass=container)(objectclass=organization)(objectclass=organizationalUnit))</value>
+		</property>
+	</bean>
+
+	<bean id="adObjectTypeSpec" lazy-init="true" class="server.id.ldap.ObjectTypeSpec">
+		<property name="personOc">
+			<list>
+				<value>Person</value>
+			</list>
+		</property>
+		<property name="groupOc">
+			<list>
+				<value>Group</value>
+			</list>
+		</property>
+		<property name="containerOc">
+			<list>
+				<value>Container</value>
+				<value>Organization</value>
+				<value>OrganizationalUnit</value>
+			</list>
+		</property>
+	</bean>
+	
+	<bean id="adSystemEntriesSpec" lazy-init="true" class="server.id.ldap.SystemEntriesSpec" init-method="init">
+		<property name="subTrees">
+			<list>
+				<value>ou=Domain Controllers</value>
+				<value>cn=ForeignSecurityPrincipals</value>
+				<value>cn=Infrastructure</value>
+				<value>cn=LostAndFound</value>
+				<value>cn=NTDS Quotas</value>
+				<value>cn=Program Data</value>
+				<value>cn=System</value>
+				<value>dc=ForestDnsZones</value>
+				<value>dc=DomainDnsZones</value>
+				<value>cn=Configuration</value>
+			</list>
+		</property>
+		<property name="entries">
+			<list>
+				<value>cn=Deleted Objects</value>
+				<value>cn=Computers</value>
+				<value>cn=Guest, cn=Users</value>
+				<value>cn=krbtgt,cn=Users</value>
+			</list>
+		</property>
+	</bean>
+
+	<bean id="adDirectorySpec" lazy-init="true" class="server.id.ldap.DirectorySpec">
+		<property name="filterSpec" ref="adFilterSpec"/>
+		<property name="objectTypeSpec" ref="adObjectTypeSpec"/>
+		<property name="systemEntriesSpec" ref="adSystemEntriesSpec"/>
+	</bean>
+
+	<bean id="ldapVirtualization" lazy-init="true" class="server.id.ldap.LdapVirtualization"/>
+
+	<bean id="adEmailRA" lazy-init="true" class="server.id.RemoteAttribute">
+		<property name="name" value="mail"/>
+	</bean>
+	<bean id="adMemberRA" lazy-init="true" class="server.id.RemoteAttribute">
+		<property name="name" value="member"/>
+	</bean>
+	<bean id="adMemberOfRA" lazy-init="true" class="server.id.RemoteAttribute">
+		<property name="name" value="memberOf"/>
+	</bean>	
+	<bean id="adWhenCreatedRA" lazy-init="true" class="server.id.RemoteAttribute">
+		<property name="name" value="whenCreated"/>
+	</bean>
+	<bean id="adWhenModifiedRA" lazy-init="true" class="server.id.RemoteAttribute">
+		<property name="name" value="whenModified"/>
+	</bean>
+	<bean id="objectClassRA" lazy-init="true" class="server.id.RemoteAttribute">
+		<property name="name" value="objectClass"/>
+	</bean>
+	<bean id="adUserPrincipalNameRA" lazy-init="true" class="server.id.RemoteAttribute">
+		<property name="name" value="userPrincipalName"/>
+	</bean>
+	<bean id="adsAMAccountNameRA" lazy-init="true" class="server.id.RemoteAttribute">
+		<property name="name" value="sAMAccountName"/>
+	</bean>
+	<bean id="dnRA" lazy-init="true" class="server.id.RemoteAttribute">
+		<property name="name" value="dn"/>
+	</bean>
+	<bean id="adObjectGUIDRA" lazy-init="true" class="server.id.RemoteAttribute">
+		<property name="name" value="objectGUID"/>
+		<property name="binary" value="true"/>
+	</bean>
+	<bean id="adUserAccountControlRA" lazy-init="true" class="server.id.RemoteAttribute">
+		<property name="name" value="userAccountControl"/>
+	</bean>
+	<bean id="adNameRA" lazy-init="true" class="server.id.RemoteAttribute">
+		<property name="name" value="name"/>
+	</bean>
+	<bean id="adParentGUIDRA" lazy-init="true" class="server.id.RemoteAttribute">
+		<property name="name" value="parentGUID"/>
+		<property name="binary" value="true"/>
+	</bean>
+	<bean id="adIsDeletedRA" lazy-init="true" class="server.id.RemoteAttribute">
+		<property name="name" value="isDeleted"/>
+	</bean>
+	<bean id="adLastKnownParentRA" lazy-init="true" class="server.id.RemoteAttribute">
+		<property name="name" value="lastKnownParent"/>
+	</bean>
+	<bean id="snRA" lazy-init="true" class="server.id.RemoteAttribute">
+		<property name="name" value="sn"/>
+	</bean>
+	<bean id="givenNameRA" lazy-init="true" class="server.id.RemoteAttribute">
+		<property name="name" value="givenName"/>
+	</bean>
+
+	<bean id="adEmailAT" lazy-init="true" class="server.id.IdentityAttributeTransform">
+		<property name="remoteAttribute" ref="adEmailRA"/>
+	</bean>
+	<bean id="adMemberOfAT" lazy-init="true" class="server.id.ldap.MemberOfAttributeTransform">
+		<property name="idVirtualization" ref="ldapVirtualization"/>
+		<property name="dnAttrName" value="dn"/>		
+	</bean>
+	<bean id="MemberOfAT" lazy-init="true" class="server.id.ldap.MemberOfAttributeTransform">
+		<property name="idVirtualization" ref="ldapVirtualization"/>
+		<property name="dnAttrName" value="object.dn"/>		
+	</bean>
+	<bean id="ldifMemberOfAT" lazy-init="true" class="server.id.ldap.ldif.MemberOfAttributeTransform">
+		<property name="idStore" ref="localIdStore"></property>
+		<property name="idVirtualization" ref="ldapVirtualization"/>
+		<property name="dnAttrName" value="object.dn"/>		
+	</bean>
+	<bean id="adMemberAT" lazy-init="true" class="server.id.IdentityAttributeTransform">
+		<property name="remoteAttribute" ref="adMemberRA"/>
+	</bean>
+	<bean id="adWhenCreatedAT" lazy-init="true" class="server.id.IdentityAttributeTransform">
+		<property name="remoteAttribute" ref="adWhenCreatedRA"/>
+	</bean>
+	<bean id="adWhenModifiedAT" lazy-init="true" class="server.id.IdentityAttributeTransform">
+		<property name="remoteAttribute" ref="adWhenModifiedRA"/>
+	</bean>
+	<bean id="objectClassAT" lazy-init="true" class="server.id.IdentityAttributeTransform">
+		<property name="remoteAttribute" ref="objectClassRA"/>
+	</bean>
+	<bean id="adUserPrincipalNameAT" lazy-init="true" class="server.id.IdentityAttributeTransform">
+		<property name="remoteAttribute" ref="adUserPrincipalNameRA"/>
+	</bean>
+	<bean id="adSAMAccountNameAT" lazy-init="true" class="server.id.IdentityAttributeTransform">
+		<property name="remoteAttribute" ref="adsAMAccountNameRA"/>
+	</bean>
+	<bean id="dnAT" lazy-init="true" class="server.id.IdentityAttributeTransform">
+		<property name="remoteAttribute" ref="dnRA"/>
+	</bean>
+	<bean id="adUuidAT" lazy-init="true" class="server.id.IdentityAttributeTransform">
+		<property name="remoteAttribute" ref="adObjectGUIDRA"/>
+	</bean>
+	<bean id="adAccountDisabledAT" lazy-init="true" class="server.id.ldap.ad.UserDisabledAttributeTransform"/>
+	<bean id="adNameAT" lazy-init="true" class="server.id.IdentityAttributeTransform">
+		<property name="remoteAttribute" ref="adNameRA"/>
+	</bean>
+	<bean id="adParentUuidAT" lazy-init="true" class="server.id.IdentityAttributeTransform">
+		<property name="remoteAttribute" ref="adParentGUIDRA"/>
+	</bean>
+	<bean id="adIsDeletedAT" lazy-init="true" class="server.id.IdentityAttributeTransform">
+		<property name="remoteAttribute" ref="adIsDeletedRA"/>
+	</bean>
+	<bean id="adLastKnownParentAT" lazy-init="true" class="server.id.IdentityAttributeTransform">
+		<property name="remoteAttribute" ref="adLastKnownParentRA"/>
+	</bean>	
+	<bean id="snAT" lazy-init="true" class="server.id.IdentityAttributeTransform">
+		<property name="remoteAttribute" ref="snRA"/>
+	</bean>	
+	<bean id="givenNameAT" lazy-init="true" class="server.id.IdentityAttributeTransform">
+		<property name="remoteAttribute" ref="givenNameRA"/>
+	</bean>	
+
+    <bean id="attrVirtualizationAD" lazy-init="true" class="server.id.ldap.AttributeVirtualizationImpl">
+        <property name="transformations">
+        	<map>
+        		<entry key="user.email" value-ref="adEmailAT"/>
+        		<entry key="object.rvEntryUuid" value-ref="adMemberOfAT"/>
+        		<entry key="group.member" value-ref="adMemberAT"/>
+        		<entry key="object.createTimestamp" value-ref="adWhenCreatedAT"/>
+				<entry key="object.modifyTimestamp" value-ref="adWhenModifiedAT"/>
+				<entry key="object.type" value-ref="objectClassAT"/>
+				<entry key="user.id" value-ref="adUserPrincipalNameAT"/>
+				<entry key="user.shortId" value-ref="adSAMAccountNameAT"/>
+				<entry key="object.dn" value-ref="dnAT"/>
+				<entry key="object.uuid" value-ref="adUuidAT"/>
+				<entry key="user.isDisabled" value-ref="adAccountDisabledAT"/>
+				<entry key="object.name" value-ref="adNameAT"/>
+				<entry key="object.parentUuid" value-ref="adParentUuidAT"/>
+				<entry key="object.deleted" value-ref="adIsDeletedAT"/>
+				<entry key="object.lastKnownParent" value-ref="adLastKnownParentAT"/>
+				<entry key="user.firstName" value-ref="givenNameAT"/>
+				<entry key="user.lastName" value-ref="snAT"/>
+        	</map>
+        </property>
+    </bean>
+
+	<bean id="adObjectFactory" lazy-init="true" class="server.id.ldap.ad.AdObjectFactory">
+		<property name="ocSpec">
+			<ref bean="adObjectTypeSpec"/>
+		</property>		
+		<property name="idStore" ref="localIdStore"></property>
+	</bean>
+
+	<bean id="adEventGenerator" lazy-init="true" class="server.id.ldap.ad.AdEventGenerator">
+		<property name="localStore" ref="localIdStore"/>
+		<property name="idVirtualization" ref="ldapVirtualization"/>
+		<property name="idObjectFactory" ref="adObjectFactory"/>
+	</bean>
+
+	<bean id="policyNameOP" lazy-init="true" class="server.id.sync.op.PolicyName"/>
+	<bean id="ignoreEventOP" lazy-init="true" class="server.id.sync.op.IgnoreEvent"/>
+	<bean id="forwardEventOP" lazy-init="true" class="server.id.sync.op.ForwardEvent"/>
+	<bean id="forwardEventWithAllAttributesOP" lazy-init="true" class="server.id.sync.op.ForwardEventWithAllAttributes"/>
+	<bean id="forwardAsAddEventOP" lazy-init="true" class="server.id.sync.op.ForwardAsAddEvent"/>
+	<bean id="forwardAsDeleteEventOP" lazy-init="true" class="server.id.sync.op.ForwardAsDeleteEvent">
+		<property name="idVirtualization" ref="ldapVirtualization"/>
+	</bean>
+	<bean id="forwardModifiedMembersOP" lazy-init="true" class="server.id.sync.op.ForwardModifiedMembers">
+		<property name="idStore" ref="localIdStore"/>
+		<property name="memberOfAt" ref="MemberOfAT"/>
+		<property name="ocSpec" ref="adObjectTypeSpec"/>
+		<property name="idVirtualization" ref="ldapVirtualization"/>
+	</bean>
+	<bean id="addLocalEntryOP" lazy-init="true" class="server.id.sync.op.AddLocalEntry">
+		<property name="idStore" ref="localIdStore"/>
+	</bean>
+	<bean id="modifyLocalEntryOP" lazy-init="true" class="server.id.sync.op.ModifyLocalEntry">
+		<property name="idStore" ref="localIdStore"/>
+	</bean>	
+	<bean id="deleteLocalEntryOP" lazy-init="true" class="server.id.sync.op.DeleteLocalEntry">
+		<property name="idStore" ref="localIdStore"/>
+	</bean>		
+	<bean id="deleteLocalEntryChildrenOP" lazy-init="true" class="server.id.sync.op.DeleteLocalEntryChildren">
+		<property name="idStore" ref="localIdStore"/>
+	</bean>		
+	<bean id="renameModifyLocalEntryOP" lazy-init="true" class="server.id.sync.op.RenameModifyLocalEntry">
+		<property name="idStore" ref="localIdStore"/>
+	</bean>		
+	<bean id="updateConnectorRvEntryOP" lazy-init="true" class="server.id.sync.op.UpdateConnectorRvEntry">
+		<property name="idStore" ref="localIdStore"/>
+	</bean>			
+	<bean id="updateConnectorDvEntryOP" lazy-init="true" class="server.id.sync.op.UpdateConnectorDvEntry">
+		<property name="idStore" ref="localIdStore"/>
+	</bean>			
+	<bean id="updateMemberDvEntriesOP" lazy-init="true" class="server.id.sync.op.UpdateMemberDvEntries">
+		<property name="idStore" ref="localIdStore"/>
+	</bean>
+	<bean id="agentBatchSendStartOP" lazy-init="true" class="server.id.sync.op.BatchSendStart"/>
+	<bean id="agentBatchSendEndOP" lazy-init="true" class="server.id.sync.op.BatchSendEnd"/>
+	<bean id="logErrorOP" lazy-init="true" class="server.id.sync.op.LogError"/>
+
+	<bean id="agentObligationMap" lazy-init="true" class="server.id.sync.op.ObligationMap">
+		<property name="obligationMap">
+			<map>
+				<entry key="POLICY_NAME" value-ref="policyNameOP"/>
+				<entry key="IGNORE_EVENT" value-ref="ignoreEventOP"/>
+				<entry key="FORWARD_EVENT" value-ref="forwardEventOP"/>		
+				<entry key="FORWARD_EVENT_WITH_ALL_ATTRIBUTES" value-ref="forwardEventWithAllAttributesOP"/>		
+				<entry key="FORWARD_MODIFIED_MEMBERS" value-ref="forwardModifiedMembersOP"/>		
+				<entry key="FORWARD_AS_ADD_EVENT" value-ref="forwardAsAddEventOP"/>
+				<entry key="FORWARD_AS_DELETE_EVENT" value-ref="forwardAsDeleteEventOP"/>
+				<entry key="ADD_LOCAL_ENTRY" value-ref="addLocalEntryOP"/>		
+				<entry key="MODIFY_LOCAL_ENTRY" value-ref="modifyLocalEntryOP"/>
+				<entry key="DELETE_LOCAL_ENTRY" value-ref="deleteLocalEntryOP"/>
+				<entry key="DELETE_LOCAL_ENTRY_CHILDREN" value-ref="deleteLocalEntryChildrenOP"/>
+				<entry key="RENAME_MODIFY_LOCAL_ENTRY" value-ref="renameModifyLocalEntryOP"/>
+				<entry key="RENAME_LOCAL_ENTRY" value-ref="renameModifyLocalEntryOP"/>
+				<entry key="UPDATE_CONNECTOR_RV_ENTRY" value-ref="updateConnectorRvEntryOP"/>
+				<entry key="UPDATE_CONNECTOR_DV_ENTRY" value-ref="updateConnectorDvEntryOP"/>
+				<entry key="UPDATE_MEMBER_DV_ENTRIES" value-ref="updateMemberDvEntriesOP"/>
+				<entry key="BATCH_SEND_START" value-ref="agentBatchSendStartOP"/>
+				<entry key="BATCH_SEND_END" value-ref="agentBatchSendEndOP"/>
+			</map>
+		</property>
+	</bean>
+	
+	<bean id="clientChangeEventFactory" lazy-init="true" class="server.id.sync.agent.ClientChangeEventFactory"/>
+
+	<jaxws:client id="soapClient" serviceClass="server.id.sync.operations.v1_0.SynchronizationService"
+		address="http://127.0.0.1:8088/syncservice/SynchronizationServiceV1.0">
+		<jaxws:inInterceptors>
+    	  <bean class="org.apache.cxf.interceptor.LoggingInInterceptor"/>
+		</jaxws:inInterceptors>
+		<jaxws:outInterceptors>
+    	  <bean class="org.apache.cxf.interceptor.LoggingInInterceptor"/>
+		</jaxws:outInterceptors>
+	</jaxws:client>
+
+	<bean id="soapSyncServiceClient" class="server.id.sync.server.SOAPSyncService">
+		<property name="syncClient" ref="soapClient"/>
+		<property name="changeFactory" ref="clientChangeEventFactory"/>
+	</bean>
+	
+	<bean id="agentAttributeFinder" lazy-init="true" class="server.id.sync.agent.AgentAttributeFinderModule"/>
+	
+	<bean id="adAgentPDPFactory" lazy-init="true" class="server.id.sync.ChangeEventPDPFactory">
+		<property name="policySetName" value="agentEventProcessingPolicyForAD"/>
+		<property name="attributeModule" ref="agentAttributeFinder"/>
+		<property name="policies">
+			<list> 
+				<!--  ******************** DELETE BEGIN *************************************** -->
+				<!--  Delete event for User. Parameters: existsInLocalDB, prevInScope Cases: 4 -->
+				<map> <!-- Covers 2 cases. Missing: prevInScope -->
+					<entry key="name" value="Delete_User_not_ELD"/>
+					<entry key="idObjectType" value="User"/>
+					<entry key="changeType" value="delete"/>
+					<entry key="existsInLocalDB" value="false"/>
+					<entry key="obligations">
+						<list>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="0"/>
+								<property name="type" value="POLICY_NAME" />
+								<property name="description" value="Delete_User_I_and_not_ELD" />
+							</bean>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="1"/>
+								<property name="type" value="IGNORE_EVENT"/>
+								<property name="description" value="Ignore. This entry was deleted before we added it"/>
+							</bean>
+						</list>
+					</entry>
+				</map>
+				<map> <!--  Covers 1 case -->
+					<entry key="name" value="Delete_User_I_and_ELD"/>
+					<entry key="idObjectType" value="User"/>
+					<entry key="changeType" value="delete"/>
+					<entry key="existsInLocalDB" value="true"/>
+					<entry key="prevInScope" value="true"/>
+					<entry key="obligations">
+						<list>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="0"/>
+								<property name="type" value="POLICY_NAME" />
+								<property name="description" value="Delete_User_I_and_ELD" />
+							</bean>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="1"/>
+								<property name="type" value="FORWARD_EVENT" />
+								<property name="description" value="Forward the event to Server." />
+							</bean>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="2"/>
+								<property name="type" value="DELETE_LOCAL_ENTRY" />
+								<property name="description"
+									value="Delete local entry after forward is confirmed." />
+							</bean>
+						</list>
+					</entry>
+				</map>
+				<map> <!--  Covers 1 case  -->
+					<entry key="name" value="Delete_User_not_I_and_ELD"/>
+					<entry key="idObjectType" value="User"/>
+					<entry key="changeType" value="delete"/>
+					<entry key="prevInScope" value="false"/>
+					<entry key="existsInLocalDB" value="true"/>
+					<entry key="obligations">
+						<list>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="0"/>
+								<property name="type" value="POLICY_NAME" />
+								<property name="description" value="Delete_User_not_I_and_ELD" />
+							</bean>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="1"/>
+								<property name="type" value="DELETE_LOCAL_ENTRY"/>
+								<property name="description" value="Delete out of scope deleted entry in agent"/>
+							</bean>
+						</list>
+					</entry>
+				</map>
+
+				<!-- Delete event for Group. Parameters: existsInLocalDB, isMapped Cases: 4 -->
+				<map> <!--  covers 2 case --> 
+					<entry key="name" value="Delete_Group_not_ELD"/>
+					<entry key="idObjectType" value="Group"/>
+					<entry key="changeType" value="delete"/>
+					<entry key="existsInLocalDB" value="false"/>
+					<entry key="obligations">
+						<list>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="0"/>
+								<property name="type" value="POLICY_NAME" />
+								<property name="description" value="Delete_Group_not_ELD" />
+							</bean>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="1"/>							
+								<property name="type" value="IGNORE_EVENT"/>
+								<property name="description" value="Ignore deleted group not known to us"/>
+							</bean>
+						</list>
+					</entry>
+				</map>
+				<map> <!-- Covers 1 case -->
+					<entry key="name" value="Delete_Group_not_M_and_ELD" />
+					<entry key="idObjectType" value="Group" />
+					<entry key="changeType" value="delete" />
+					<entry key="existsInLocalDB" value="true"/>					
+					<entry key="isMapped" value="false" />
+					<entry key="obligations">
+						<list>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="0" />
+								<property name="type" value="POLICY_NAME" />
+								<property name="description" value="Delete_Group_not_M_and_ELD" />
+							</bean>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="1" />
+								<property name="type" value="DELETE_LOCAL_ENTRY" />
+								<property name="description" value="An unmapped group only needs to be deleted locally" />
+							</bean>
+						</list>
+					</entry>
+				</map>
+				<map> <!-- Covers 1 case -->
+					<entry key="name" value="Delete_Group_M_and_ELD" />
+					<entry key="idObjectType" value="Group" />
+					<entry key="changeType" value="delete" />
+					<entry key="existsInLocalDB" value="true"/>					
+					<entry key="isMapped" value="true" />
+					<entry key="obligations">
+						<list>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="0" />
+								<property name="type" value="POLICY_NAME" />
+								<property name="description" value="Delete_Group_M_and_ELD" />
+							</bean>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="1" />
+								<property name="type" value="FORWARD_MODIFIED_MEMBERS" />
+								<property name="description" value="Forward delete member event for users whose group mapping has changed" />
+							</bean>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="2"/>
+								<property name="type" value="UPDATE_CONNECTOR_RV_ENTRY" />
+								<property name="description" value="Update the connector RV Entry." />
+							</bean>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="3"/>
+								<property name="type" value="UPDATE_MEMBER_DV_ENTRIES" />
+								<property name="description" value="Update the DV Entries of the members." />
+							</bean>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="4" />
+								<property name="type" value="DELETE_LOCAL_ENTRY" />
+								<property name="description" value="Delete the mapped group locally" />
+							</bean>
+						</list>
+					</entry>
+				</map>
+
+				<!-- Delete event for Container. Parameters: existsInLocalDB Cases: 2  -->
+				<map> <!-- Covers 1 case -->
+					<entry key="name" value="Delete_Container_not_ELD"/>
+					<entry key="idObjectType" value="Container"/>
+					<entry key="changeType" value="delete"/>
+					<entry key="existsInLocalDB" value="false"/>
+					<entry key="obligations">
+						<list>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="0"/>
+								<property name="type" value="POLICY_NAME" />
+								<property name="description" value="Delete_Container_not_ELD" />
+							</bean>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="1"/>
+								<property name="type" value="UPDATE_CONNECTOR_DV_ENTRY" />
+								<property name="description" value="Update the connector DV Entry." />
+							</bean>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="2"/>
+								<property name="type" value="IGNORE_EVENT"/>
+								<property name="description" value="Ignore deleted container not known to us"/>
+							</bean>
+						</list>
+					</entry>
+				</map>
+				<map> <!-- Covers 1 case -->
+					<entry key="name" value="Delete_Container_ELD"/>
+					<entry key="idObjectType" value="Container"/>
+					<entry key="changeType" value="delete"/>
+					<entry key="existsInLocalDB" value="true"/>
+					<entry key="obligations">
+						<list>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="0"/>
+								<property name="type" value="POLICY_NAME" />
+								<property name="description" value="Delete_Container_ELD" />
+							</bean>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="1"/>
+								<property name="type" value="UPDATE_CONNECTOR_DV_ENTRY" />
+								<property name="description" value="Update the connector DV Entry." />
+							</bean>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="2"/>
+								<property name="type" value="DELETE_LOCAL_ENTRY" />
+								<property name="description"
+									value="Delete local entry." />
+							</bean>							
+						</list>
+					</entry>
+				</map>
+				<!--  ******************** DELETE END *************************************** -->
+
+				<!--  ******************** ADD BEGIN *************************************** -->
+				<!-- Add event for Users Parameters: inScope Cases: 2 Defaults: existsInLocalDB == false -->
+				<map> <!-- Covers 1 case --> 
+					<entry key="name" value="Add_User_I"/>
+					<entry key="idObjectType" value="User"/>
+					<entry key="changeType" value="add"/>
+					<entry key="inScope" value="true"/>
+					<entry key="obligations">
+						<list>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="0"/>
+								<property name="type" value="POLICY_NAME" />
+								<property name="description" value="Add_User_I" />
+							</bean>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="1"/>
+								<property name="type" value="FORWARD_EVENT" />
+								<property name="description" value="Forward the event to Server." />
+							</bean>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="2"/>
+								<property name="type" value="ADD_LOCAL_ENTRY" />
+								<property name="description"
+									value="Add local entry after forward is confirmed." />
+							</bean>
+						</list>
+					</entry>
+                </map>
+				<map> <!-- Covers in 1 case -->
+					<entry key="name" value="Add_User_not_I"/>
+					<entry key="idObjectType" value="User"/>
+					<entry key="changeType" value="add"/>
+					<entry key="inScope" value="false"/>
+					<entry key="obligations">
+						<list>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="0"/>
+								<property name="type" value="POLICY_NAME" />
+								<property name="description" value="Add_User_not_I" />
+							</bean>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="2"/>
+								<property name="type" value="ADD_LOCAL_ENTRY" />
+								<property name="description" value="Add local entry." />
+							</bean>
+						</list>
+					</entry>
+                </map>
+
+				<!--Add event for Group. Parameters: isMapped Default: existsInLocalDB == false Cases: 2-->
+				<map> <!-- Covers 1 case -->
+					<entry key="name" value="Add_Group_not_M" />
+					<entry key="idObjectType" value="Group" />
+					<entry key="changeType" value="add" />
+					<entry key="isMapped" value="false" />
+					<entry key="obligations">
+						<list>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="0" />
+								<property name="type" value="POLICY_NAME" />
+								<property name="description" value="Add_Group_not_M" />
+							</bean>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="1" />
+								<property name="type" value="ADD_LOCAL_ENTRY" />
+								<property name="description" value="An unmapped entry only needs to be added locally" />
+							</bean>
+						</list>
+					</entry>
+				</map>
+				<map> <!-- Covers 1 case -->
+					<entry key="name" value="Add_Group_M" />
+					<entry key="idObjectType" value="Group" />
+					<entry key="changeType" value="add" />
+					<entry key="isMapped" value="true" />
+					<entry key="obligations">
+						<list>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="0" />
+								<property name="type" value="POLICY_NAME" />
+								<property name="description" value="Add_Group_M" />
+							</bean>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="1" />
+								<property name="type" value="FORWARD_MODIFIED_MEMBERS" />
+								<property name="description" value="Forward modify event for users whose group mapping has changed" />
+							</bean>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="2"/>
+								<property name="type" value="UPDATE_MEMBER_DV_ENTRIES" />
+								<property name="description" value="Update the DV Entries of the members." />
+							</bean>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="3" />
+								<property name="type" value="ADD_LOCAL_ENTRY" />
+								<property name="description" value="Add the mapped group locally" />
+							</bean>
+						</list>
+					</entry>
+				</map>
+
+				<map> <!-- Add event for Container. Parameters: Cases: 1 Defaults: existsInLocalDB == false -->
+					<entry key="name" value="Add_Container"/>
+					<entry key="idObjectType" value="Container"/>
+					<entry key="changeType" value="add"/>
+					<entry key="obligations">
+						<list>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="0"/>
+								<property name="type" value="POLICY_NAME" />
+								<property name="description" value="Add_Container" />
+							</bean>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="1"/>
+								<property name="type" value="ADD_LOCAL_ENTRY" />
+								<property name="description"
+									value="Add local entry for the container. No forward is necessary." />
+							</bean>
+						</list>
+					</entry>
+                </map>
+				<!--  ******************** ADD END *************************************** -->
+
+				<!--  ******************** MODIFY BEGIN *************************************** -->
+				<!-- Modify event for Users Parameters: inScope, prevInScope Cases: 4 Defaults: existsInLocalDB == true -->
+				<map> <!-- Covers 1 case -->
+					<entry key="name" value="Modify_I_and_PI"/>
+					<entry key="idObjectType" value="User"/>
+					<entry key="changeType" value="modify"/>
+					<entry key="inScope" value="true"/>
+					<entry key="prevInScope" value="true"/>
+					<entry key="obligations">
+						<list>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="0"/>
+								<property name="type" value="POLICY_NAME" />
+								<property name="description" value="Modify_I_and_PI" />
+							</bean>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="1"/>
+								<property name="type" value="FORWARD_EVENT" />
+								<property name="description" value="Forward the event to Server." />
+							</bean>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="2"/>
+								<property name="type" value="MODIFY_LOCAL_ENTRY" />
+								<property name="description" value="Modify local entry after forward is confirmed." />
+							</bean>
+						</list>
+					</entry>					
+				</map>
+				<map> <!-- Covers 1 case -->
+					<entry key="name" value="Modify_I_and_not_PI"/>
+					<entry key="idObjectType" value="User"/>
+					<entry key="changeType" value="modify"/>
+					<entry key="inScope" value="true"/>
+					<entry key="prevInScope" value="false"/>
+					<entry key="obligations">
+						<list>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="0"/>
+								<property name="type" value="POLICY_NAME" />
+								<property name="description" value="Modify_I_and_not_PI" />
+							</bean>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="1"/>
+								<property name="type" value="FORWARD_AS_ADD_EVENT" />
+								<property name="description" value="Forward the event to Server." />
+							</bean>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="2"/>
+								<property name="type" value="MODIFY_LOCAL_ENTRY" />
+								<property name="description" value="Modify local entry after forward is confirmed." />
+							</bean>
+						</list>
+					</entry>					
+				</map>
+				<map> <!-- Covers 1 case -->
+					<entry key="name" value="Modify_not_I_and_PI"/>
+					<entry key="idObjectType" value="User"/>
+					<entry key="changeType" value="modify"/>
+					<entry key="inScope" value="false"/>
+					<entry key="prevInScope" value="true"/>
+					<entry key="obligations">
+						<list>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="0"/>
+								<property name="type" value="POLICY_NAME" />
+								<property name="description" value="Modify_not_I_and_PI" />
+							</bean>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="1"/>
+								<property name="type" value="FORWARD_AS_DELETE_EVENT" />
+								<property name="description" value="Forward the event to Server." />
+							</bean>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="2"/>
+								<property name="type" value="MODIFY_LOCAL_ENTRY" />
+								<property name="description" value="Modify local entry after forward is confirmed." />
+							</bean>
+						</list>
+					</entry>					
+				</map>
+				<map> <!-- Covers 1 case -->
+					<entry key="name" value="Modify_not_I_and_not_PI"/>
+					<entry key="idObjectType" value="User"/>
+					<entry key="changeType" value="modify"/>
+					<entry key="inScope" value="false"/>
+					<entry key="prevInScope" value="false"/>
+					<entry key="obligations">
+						<list>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="0"/>
+								<property name="type" value="POLICY_NAME" />
+								<property name="description" value="Modify_not_I_and_not_PI" />
+							</bean>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="2"/>
+								<property name="type" value="MODIFY_LOCAL_ENTRY" />
+								<property name="description" value="Modify local entry after forward is confirmed." />
+							</bean>
+						</list>
+					</entry>					
+				</map>
+
+				<!--Modify event for Group. Parameters: isMapped Default: existsInLocalDB == true Cases: 2-->
+				<map> <!-- Covers 1 case -->
+					<entry key="name" value="Modify_Group_not_M" />
+					<entry key="idObjectType" value="Group" />
+					<entry key="changeType" value="modify" />
+					<entry key="isMapped" value="false" />
+					<entry key="obligations">
+						<list>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="0" />
+								<property name="type" value="POLICY_NAME" />
+								<property name="description" value="Modify_Group_not_M" />
+							</bean>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="1" />
+								<property name="type" value="MODIFY_LOCAL_ENTRY" />
+								<property name="description" value="An unmapped entry only needs to be modified locally" />
+							</bean>
+						</list>
+					</entry>
+				</map>
+				<map> <!-- Covers 1 case -->
+					<entry key="name" value="Modify_Group_M" />
+					<entry key="idObjectType" value="Group" />
+					<entry key="changeType" value="modify" />
+					<entry key="isMapped" value="true" />
+					<entry key="obligations">
+						<list>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="0" />
+								<property name="type" value="POLICY_NAME" />
+								<property name="description" value="Modify_Group_M" />
+							</bean>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="1" />
+								<property name="type" value="FORWARD_MODIFIED_MEMBERS" />
+								<property name="description" value="Forward modify event for users whose group mapping has changed" />
+							</bean>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="2"/>
+								<property name="type" value="UPDATE_MEMBER_DV_ENTRIES" />
+								<property name="description" value="Update the DV Entries of the members." />
+							</bean>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="3" />
+								<property name="type" value="MODIFY_LOCAL_ENTRY" />
+								<property name="description" value="Modify the mapped group locally" />
+							</bean>
+						</list>
+					</entry>
+				</map>
+
+				<!-- Modify event for Container Parameters: Cases: 1 Defaults: existsInLocalDB == true -->
+				<map> 
+					<entry key="name" value="Modify_Container"/>
+					<entry key="idObjectType" value="Container"/>
+					<entry key="changeType" value="modify"/>
+					<entry key="obligations">
+						<list>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="0"/>
+								<property name="type" value="POLICY_NAME" />
+								<property name="description" value="Modify_Container" />
+							</bean>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="1"/>
+								<property name="type" value="MODIFY_LOCAL_ENTRY" />
+								<property name="description"
+									value="Modify local container entry. Forward not necessary" />
+							</bean>
+						</list>
+					</entry>
+                </map>
+				<!--  ******************** MODIFY END *************************************** -->
+
+				<!--  ******************** RENAME_MODIFY BEGIN *************************************** -->
+				<!-- Rename_Modify event for User Parameters: inScope, prevInScope Cases: 4 Defaults: existsInLocalDB == true -->
+				<map> <!-- Covers 1 case -->
+					<entry key="name" value="RenameModify_I_and_PI"/>
+					<entry key="idObjectType" value="User"/>
+					<entry key="changeType" value="rename_modify"/>
+					<entry key="inScope" value="true"/>
+					<entry key="prevInScope" value="true"/>
+					<entry key="obligations">
+						<list>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="0"/>
+								<property name="type" value="POLICY_NAME" />
+								<property name="description" value="RenameModify_I_and_PI" />
+							</bean>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="1"/>
+								<property name="type" value="FORWARD_EVENT" />
+								<property name="description" value="Forward the event to Server." />
+							</bean>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="2"/>
+								<property name="type" value="RENAME_MODIFY_LOCAL_ENTRY" />
+								<property name="description" value="Rename local entry after forward is confirmed." />
+							</bean>
+						</list>
+					</entry>					
+				</map>
+				<map> <!-- Covers 1 case -->
+					<entry key="name" value="RenameModify_I_and_not_PI"/>
+					<entry key="idObjectType" value="User"/>
+					<entry key="changeType" value="rename_modify"/>
+					<entry key="inScope" value="true"/>
+					<entry key="prevInScope" value="false"/>
+					<entry key="obligations">
+						<list>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="0"/>
+								<property name="type" value="POLICY_NAME" />
+								<property name="description" value="RenameModify_I_and_not_PI" />
+							</bean>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="1"/>
+								<property name="type" value="FORWARD_AS_ADD_EVENT" />
+								<property name="description" value="Forward the event to Server." />
+							</bean>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="2"/>
+								<property name="type" value="RENAME_MODIFY_LOCAL_ENTRY" />
+								<property name="description" value="Rename local entry after forward is confirmed." />
+							</bean>
+						</list>
+					</entry>					
+				</map>
+				<map> <!-- Covers 1 case -->
+					<entry key="name" value="RenameModify_not_I_and_PI"/>
+					<entry key="idObjectType" value="User"/>
+					<entry key="changeType" value="rename_modify"/>
+					<entry key="inScope" value="false"/>
+					<entry key="prevInScope" value="true"/>
+					<entry key="obligations">
+						<list>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="0"/>
+								<property name="type" value="POLICY_NAME" />
+								<property name="description" value="RenameModify_not_I_and_PI" />
+							</bean>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="1"/>
+								<property name="type" value="FORWARD_AS_DELETE_EVENT" />
+								<property name="description" value="Forward the event to Server." />
+							</bean>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="2"/>
+								<property name="type" value="RENAME_MODIFY_LOCAL_ENTRY" />
+								<property name="description" value="Rename local entry after forward is confirmed." />
+							</bean>
+						</list>
+					</entry>					
+				</map>
+				<map> <!-- Covers 1 case -->
+					<entry key="name" value="RenameModify_not_I_and_not_PI"/>
+					<entry key="idObjectType" value="User"/>
+					<entry key="changeType" value="rename_modify"/>
+					<entry key="inScope" value="false"/>
+					<entry key="prevInScope" value="false"/>
+					<entry key="obligations">
+						<list>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="0"/>
+								<property name="type" value="POLICY_NAME" />
+								<property name="description" value="RenameModify_not_I_and_not_PI" />
+							</bean>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="2"/>
+								<property name="type" value="RENAME_MODIFY_LOCAL_ENTRY" />
+								<property name="description" value="Rename local entry after forward is confirmed." />
+							</bean>
+						</list>
+					</entry>					
+				</map>
+				
+				<!-- Rename_Modify event for Group Parameters: isMapped Cases: 2  Defaults: existsInLocalDB == true -->
+				<map> <!-- Covers 1 case -->
+					<entry key="name" value="RenameModify_Group_not_M" />
+					<entry key="idObjectType" value="Group" />
+					<entry key="changeType" value="rename_modify" />
+					<entry key="isMapped" value="false" />
+					<entry key="obligations">
+						<list>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="0" />
+								<property name="type" value="POLICY_NAME" />
+								<property name="description" value="RenameModify_Group_not_M" />
+							</bean>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="1" />
+								<property name="type" value="RENAME_MODIFY_LOCAL_ENTRY" />
+								<property name="description" value="An unmapped entry only needs to be modified locally" />
+							</bean>
+						</list>
+					</entry>
+				</map>
+				<map> <!-- Covers 1 case -->
+					<entry key="name" value="RenameModify_Group_M" />
+					<entry key="idObjectType" value="Group" />
+					<entry key="changeType" value="rename_modify" />
+					<entry key="isMapped" value="true" />
+					<entry key="obligations">
+						<list>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="0" />
+								<property name="type" value="POLICY_NAME" />
+								<property name="description" value="RenameModify_Group_M" />
+							</bean>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="1" />
+								<property name="type" value="FORWARD_MODIFIED_MEMBERS" />
+								<property name="description" value="Forward modify event for users whose group mapping has changed" />
+							</bean>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="2"/>
+								<property name="type" value="UPDATE_CONNECTOR_RV_ENTRY" />
+								<property name="description" value="Update the connector RV Entry." />
+							</bean>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="3"/>
+								<property name="type" value="UPDATE_MEMBER_DV_ENTRIES" />
+								<property name="description" value="Update the DV Entries of the members." />
+							</bean>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="4" />
+								<property name="type" value="RENAME_MODIFY_LOCAL_ENTRY" />
+								<property name="description" value="Modify the mapped group locally" />
+							</bean>
+						</list>
+					</entry>
+				</map>
+
+				<!-- TODO rename_modify for containers Parameters: inScope, prevInScope, effectsInScopeObjects, prevEffectsInScopeObjects Cases: 16 Defaults: existsInLocalDB == true -->
+				<map> <!-- Covers 4 cases -->
+					<entry key="name" value="RenameModify_PI_and_I"/>
+					<entry key="idObjectType" value="Container"/>
+					<entry key="changeType" value="rename_modify"/>
+					<entry key="prevInScope" value="true"/>
+					<entry key="inScope" value="true"/>
+					<entry key="obligations">
+						<list>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="0"/>
+								<property name="type" value="POLICY_NAME" />
+								<property name="description" value="RenameModify_PI_and_I" />
+							</bean>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="1"/>
+								<property name="type" value="FORWARD_EVENT" />
+								<property name="description" value="Forward the rename of this entry" />
+							</bean>							
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="2"/>
+								<property name="type" value="FORWARD_PREV_INSCOPE_CHILDREN_AS_RENAME" />
+								<property name="description" value="Forward previously in scope children as rename" />
+							</bean>							
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="3"/>
+								<property name="type" value="RENAME_MODIFY_LOCAL_ENTRY" />
+								<property name="description"
+									value="Rename and Modify local entry after forward is confirmed." />
+							</bean>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="4"/>
+								<property name="type" value="RENAME_LOCAL_CHILDREN" />
+								<property name="description"
+									value="Rename local children after forward is confirmed." />
+							</bean>
+						</list>
+					</entry>					
+				</map>
+				<map> <!-- Covers 2 cases -->
+					<entry key="name" value="RenameModify_PI_and_not_I_and_AI"/>
+					<entry key="idObjectType" value="Container"/>
+					<entry key="changeType" value="rename_modify"/>
+					<entry key="prevInScope" value="true"/>
+					<entry key="inScope" value="false"/>
+					<entry key="effectsInScopeObjects" value="true"/>
+					<entry key="obligations">
+						<list>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="0"/>
+								<property name="type" value="POLICY_NAME" />
+								<property name="description" value="RenameModify_PI_and_not_I_and_AI" />
+							</bean>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="1"/>
+								<property name="type" value="FORWARD_AS_DELETE_EVENT" />
+								<property name="description" value="Forward the event to Server." />
+							</bean>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="2"/>
+								<property name="type" value="FORWARD_PREV_INSCOPE_AND_INSCOPE_CHILDREN_AS_RENAME_EVENT" />
+								<property name="description" value="Forward prevInScope and inScope and rename." />
+							</bean>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="3"/>
+								<property name="type" value="FORWARD_PREV_INSCOPE_AND_NOT_INSCOPE_CHILDREN_AS_DELETE_EVENT" />
+								<property name="description" value="Forward prevInScope and not inScope as delete." />
+							</bean>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="4"/>
+								<property name="type" value="RENAME_MODIFY_LOCAL_ENTRY" />
+								<property name="description"
+									value="Rename and Modify local entry after forward is confirmed." />
+							</bean>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="5"/>
+								<property name="type" value="RENAME_LOCAL_CHILDREN" />
+								<property name="description"
+									value="Rename local children after forward is confirmed." />
+							</bean>
+						</list>
+					</entry>					
+				</map>
+				<map> <!-- Covers 2 cases -->
+					<entry key="name" value="RenameModify_PI_and_not_I_and_not_AI"/>
+					<entry key="idObjectType" value="Container"/>
+					<entry key="changeType" value="rename_modify"/>
+					<entry key="prevInScope" value="true"/>
+					<entry key="inScope" value="false"/>
+					<entry key="effectsInScopeObjects" value="false"/>
+					<entry key="obligations">
+						<list>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="0"/>
+								<property name="type" value="POLICY_NAME" />
+								<property name="description" value="RenameModify_PI_and_not_I_and_not_AI" />
+							</bean>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="1"/>
+								<property name="type" value="FORWARD_AS_DELETE_EVENT" />
+								<property name="description" value="Forward the event to Server." />
+							</bean>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="2"/>
+								<property name="type" value="FORWARD_PREV_INSCOPE_AND_NOT_INSCOPE_CHILDREN_AS_DELETE_EVENT" />
+								<property name="description" value="Forward prevInScope and not inScope as delete." />
+							</bean>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="3"/>
+								<property name="type" value="RENAME_MODIFY_LOCAL_ENTRY" />
+								<property name="description"
+									value="Rename and Modify local entry after forward is confirmed." />
+							</bean>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="4"/>
+								<property name="type" value="RENAME_LOCAL_CHILDREN" />
+								<property name="description"
+									value="Rename local children after forward is confirmed." />
+							</bean>
+						</list>
+					</entry>					
+				</map>
+				<map> <!-- Covers 2 cases -->
+					<entry key="name" value="RenameModify_not_PI_and_PAI_and_I"/>
+					<entry key="idObjectType" value="Container"/>
+					<entry key="changeType" value="rename_modify"/>
+					<entry key="prevInScope" value="false"/>
+					<entry key="prevEffectsInScopeObjects" value="true"/>
+					<entry key="inScope" value="true"/>
+					<entry key="obligations">
+						<list>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="0"/>
+								<property name="type" value="POLICY_NAME" />
+								<property name="description" value="RenameModify_not_PI_and_PAI_and_I" />
+							</bean>
+						</list>
+					</entry>					
+				</map>
+				<map> <!-- Covers 1 cases -->
+					<entry key="name" value="RenameModify_not_PI_and_PAI_and_not_I_and_AI"/>
+					<entry key="idObjectType" value="Container"/>
+					<entry key="changeType" value="rename_modify"/>
+					<entry key="prevInScope" value="false"/>
+					<entry key="prevEffectsInScopeObjects" value="true"/>
+					<entry key="inScope" value="false"/>
+					<entry key="effectsInScopeObjects" value="true"/>
+					<entry key="obligations">
+						<list>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="0"/>
+								<property name="type" value="POLICY_NAME" />
+								<property name="description" value="RenameModify_not_PI_and_PAI_and_not_I_and_AI" />
+							</bean>
+						</list>
+					</entry>					
+				</map>
+				<map> <!-- Covers 1 cases -->
+					<entry key="name" value="RenameModify_not_PI_and_PAI_and_not_I_and_not_AI"/>
+					<entry key="idObjectType" value="Container"/>
+					<entry key="changeType" value="rename_modify"/>
+					<entry key="prevInScope" value="false"/>
+					<entry key="prevEffectsInScopeObjects" value="true"/>
+					<entry key="inScope" value="false"/>
+					<entry key="effectsInScopeObjects" value="false"/>
+					<entry key="obligations">
+						<list>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="0"/>
+								<property name="type" value="POLICY_NAME" />
+								<property name="description" value="RenameModify_not_PI_and_PAI_and_not_I_and_not_AI" />
+							</bean>
+						</list>
+					</entry>					
+				</map>
+				<map> <!-- Covers 2 cases -->
+					<entry key="name" value="RenameModify_not_PI_and_not_PAI_and_I"/>
+					<entry key="idObjectType" value="Container"/>
+					<entry key="changeType" value="rename_modify"/>
+					<entry key="prevInScope" value="false"/>
+					<entry key="prevEffectsInScopeObjects" value="false"/>
+					<entry key="inScope" value="true"/>
+					<entry key="obligations">
+						<list>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="0"/>
+								<property name="type" value="POLICY_NAME" />
+								<property name="description" value="RenameModify_not_PI_and_not_PAI_and_I" />
+							</bean>
+						</list>
+					</entry>					
+				</map>
+				<map> <!-- Covers 1 cases -->
+					<entry key="name" value="RenameModify_not_PI_and_not_PAI_and_not_I_and_AI"/>
+					<entry key="idObjectType" value="Container"/>
+					<entry key="changeType" value="rename_modify"/>
+					<entry key="prevInScope" value="false"/>
+					<entry key="prevEffectsInScopeObjects" value="false"/>
+					<entry key="inScope" value="false"/>
+					<entry key="effectsInScopeObjects" value="true"/>
+					<entry key="obligations">
+						<list>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="0"/>
+								<property name="type" value="POLICY_NAME" />
+								<property name="description" value="RenameModify_not_PI_and_not_PAI_and_not_I_and_AI" />
+							</bean>
+						</list>
+					</entry>					
+				</map>
+				<map> <!-- Covers 1 cases -->
+					<entry key="name" value="RenameModify_not_PI_and_not_PAI_and_not_I_and_not_AI"/>
+					<entry key="idObjectType" value="Container"/>
+					<entry key="changeType" value="rename_modify"/>
+					<entry key="prevInScope" value="false"/>
+					<entry key="prevEffectsInScopeObjects" value="false"/>
+					<entry key="inScope" value="false"/>
+					<entry key="effectsInScopeObjects" value="false"/>
+					<entry key="obligations">
+						<list>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="0"/>
+								<property name="type" value="POLICY_NAME" />
+								<property name="description" value="RenameModify_not_PI_and_not_PAI_and_not_I_and_not_AI" />
+							</bean>
+						</list>
+					</entry>					
+				</map>
+				<!--  ******************** RENAME_MODIFY END *************************************** -->
+				
+			</list>
+		</property>
+	</bean>
+
+</beans>

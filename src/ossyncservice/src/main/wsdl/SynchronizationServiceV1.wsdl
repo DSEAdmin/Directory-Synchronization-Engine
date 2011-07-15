@@ -1,0 +1,175 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 
+    Version: MPL 1.1
+  
+   The contents of this file are subject to the Mozilla Public License Version
+   1.1 (the "License"); you may not use this file except in compliance with
+    the License. You may obtain a copy of the License at
+    http://www.mozilla.org/MPL/
+  
+   Software distributed under the License is distributed on an "AS IS" basis,
+   WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+   for the specific language governing rights and limitations under the
+   License.
+  
+   The Original Code is Directory Synchronization Engine(DSE).
+  
+   The Initial Developer of the Original Code is IronKey, Inc..
+   Portions created by the Initial Developer are Copyright (C) 2011
+   the Initial Developer. All Rights Reserved.
+  
+   Contributor(s): Shirish Rai
+-->
+<wsdl:definitions name="SynchronizationService"
+	targetNamespace="http://operations.sync.id.server/v1.0"
+	xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/" 
+	xmlns:tns="http://operations.sync.id.server/v1.0"
+	xmlns:xsd="http://www.w3.org/2001/XMLSchema" 
+	xmlns:soap12="http://schemas.xmlsoap.org/wsdl/soap12/"
+	xmlns:msgs="http://messages.sync.id.server/v1.0">
+	<wsdl:types>
+		<schema xmlns="http://www.w3.org/2001/XMLSchema">
+			<import namespace="http://messages.sync.id.server/v1.0"
+				schemaLocation="SynchronizationServiceMessagesV1.xsd" />
+		</schema>
+	</wsdl:types>
+	<wsdl:message name="requestChangeResponse">
+		<wsdl:part name="changeResponse" element="msgs:changeResponse">
+		</wsdl:part>
+	</wsdl:message>
+	<wsdl:message name="requestChange">
+		<wsdl:part name="changeRequest" element="msgs:changeRequest">
+		</wsdl:part>
+	</wsdl:message>
+	<wsdl:message name="requestStatus">
+		<wsdl:part name="connectorStatusRequest" element="msgs:connectorStatusRequest">
+		</wsdl:part>
+	</wsdl:message>
+	<wsdl:message name="responseStatus">
+		<wsdl:part name="connectorStatusResponse" element="msgs:connectorStatusResponse">
+		</wsdl:part>
+	</wsdl:message>
+	<wsdl:message name="responseConnectorConfiguration">
+		<wsdl:part name="connectorConfigurationResponse" element="msgs:connectorConfigurationResponse">
+		</wsdl:part>
+	</wsdl:message>
+	<wsdl:message name="requestConnectorConfiguration">
+		<wsdl:part name="connectorConfigurationRequest" element="msgs:connectorConfigurationRequest">
+		</wsdl:part>
+	</wsdl:message>
+	<wsdl:message name="responseRole">
+		<wsdl:part name="roleResponse" element="msgs:roleResponse"></wsdl:part>
+	</wsdl:message>
+	<wsdl:message name="requestRole">
+		<wsdl:part name="roleRequest" element="msgs:roleRequest"/>
+	</wsdl:message>
+	<wsdl:message name="responseContainer">
+		<wsdl:part name="containerResponse" element="msgs:containerResponse"></wsdl:part>
+	</wsdl:message>
+	<wsdl:message name="requestContainer">
+		<wsdl:part name="containerRequest" element="msgs:containerRequest"/>
+	</wsdl:message>
+	<wsdl:message name="requestFullSyncMetaData">
+		<wsdl:part name="fullSyncMetaDataRequest" element="msgs:fullSyncMetaDataRequest"/>
+	</wsdl:message>
+	<wsdl:message name="responseFullSyncMetaData">
+		<wsdl:part name="fullSyncMetaDataResponse" element="msgs:fullSyncMetaDataResponse"/>
+	</wsdl:message>
+	<wsdl:portType name="SynchronizationService">
+		<wsdl:operation name="requestChange">
+			<wsdl:input name="requestChange" message="tns:requestChange">
+			</wsdl:input>
+			<wsdl:output name="requestChangeResponse" message="tns:requestChangeResponse">
+			</wsdl:output>
+		</wsdl:operation>
+		<wsdl:operation name="pushStatus">
+			<wsdl:input name="requestStatus" message="tns:requestStatus">
+			</wsdl:input>
+			<wsdl:output name="responseStatus" message="tns:responseStatus">
+			</wsdl:output>
+		</wsdl:operation>
+		<wsdl:operation name="pushConfiguration">
+			<wsdl:input name="requestConnectorConfiguration" message="tns:requestConnectorConfiguration">
+			</wsdl:input>
+			<wsdl:output name="responseConnectorConfiguration" message="tns:responseConnectorConfiguration">
+			</wsdl:output>
+		</wsdl:operation>
+		<wsdl:operation name="getLocalRoles">
+			<wsdl:input name="requestRole" message="tns:requestRole"/>
+			<wsdl:output name="responseRole" message="tns:responseRole"></wsdl:output>
+		</wsdl:operation>
+		<wsdl:operation name="getLocalContainers">
+			<wsdl:input name="requestContainer" message="tns:requestContainer"></wsdl:input>
+			<wsdl:output name="responseContainer" message="tns:responseContainer"></wsdl:output>
+		</wsdl:operation>
+		<wsdl:operation name="pushFullSyncMetaData">
+			<wsdl:input name="requestFullSyncMetaData" message="tns:requestFullSyncMetaData"/>
+			<wsdl:output name="responseFullSyncMetaData" message="tns:responseFullSyncMetaData"/>
+		</wsdl:operation>
+	</wsdl:portType>
+	<wsdl:binding name="SynchronizationServiceSoapBinding"
+		type="tns:SynchronizationService">
+		<soap12:binding style="document"
+			transport="http://www.w3.org/2003/05/soap/bindings/HTTP/" />
+		<wsdl:operation name="requestChange">
+			<soap12:operation soapAction="" style="document" />
+			<wsdl:input name="requestChange">
+				<soap12:body use="literal" />
+			</wsdl:input>
+			<wsdl:output name="requestChangeResponse">
+				<soap12:body use="literal" />
+			</wsdl:output>
+		</wsdl:operation>
+		<wsdl:operation name="pushStatus">
+			<soap12:operation soapAction="" style="document" />
+			<wsdl:input name="requestStatus">
+				<soap12:body use="literal" />
+			</wsdl:input>
+			<wsdl:output name="responseStatus">
+				<soap12:body use="literal" />
+			</wsdl:output>
+		</wsdl:operation>
+		<wsdl:operation name="pushConfiguration">
+			<soap12:operation soapAction="" style="document" />
+			<wsdl:input name="requestConnectorConfiguration">
+				<soap12:body use="literal" />
+			</wsdl:input>
+			<wsdl:output name="responseConnectorConfiguration">
+				<soap12:body use="literal" />
+			</wsdl:output>
+		</wsdl:operation>
+		<wsdl:operation name="getLocalRoles">
+			<soap12:operation soapAction="" style="document"/>
+			<wsdl:input name="requestRole">
+				<soap12:body use="literal" />
+			</wsdl:input>
+			<wsdl:output name="responseRole">
+				<soap12:body use="literal" />
+			</wsdl:output>
+		</wsdl:operation>
+		<wsdl:operation name="getLocalContainers">
+			<soap12:operation soapAction="" style="document"/>
+			<wsdl:input name="requestContainer">
+				<soap12:body use="literal" />
+			</wsdl:input>
+			<wsdl:output name="responseContainer">
+				<soap12:body use="literal" />
+			</wsdl:output>
+		</wsdl:operation>
+		<wsdl:operation name="pushFullSyncMetaData">
+			<soap12:operation soapAction="" style="document"/>
+			<wsdl:input name="requestFullSyncMetaData">
+				<soap12:body use="literal" />			
+			</wsdl:input>
+			<wsdl:output name="responseFullSyncMetaData">
+				<soap12:body use="literal" />
+			</wsdl:output>
+		</wsdl:operation>
+	</wsdl:binding>
+	<wsdl:service name="SynchronizationService">
+		<wsdl:port name="SynchronizationServiceV1.0" binding="tns:SynchronizationServiceSoapBinding">
+			<soap12:address
+				location="https://localhost/SynchronizationServiceV1.0" />
+		</wsdl:port>
+	</wsdl:service>
+</wsdl:definitions>

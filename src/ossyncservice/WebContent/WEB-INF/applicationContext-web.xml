@@ -1,0 +1,362 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 
+    Version: MPL 1.1
+  
+   The contents of this file are subject to the Mozilla Public License Version
+   1.1 (the "License"); you may not use this file except in compliance with
+    the License. You may obtain a copy of the License at
+    http://www.mozilla.org/MPL/
+  
+   Software distributed under the License is distributed on an "AS IS" basis,
+   WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+   for the specific language governing rights and limitations under the
+   License.
+  
+   The Original Code is Directory Synchronization Engine(DSE).
+  
+   The Initial Developer of the Original Code is IronKey, Inc..
+   Portions created by the Initial Developer are Copyright (C) 2011
+   the Initial Developer. All Rights Reserved.
+  
+   Contributor(s): Shirish Rai
+  
+-->
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:aop="http://www.springframework.org/schema/aop"
+	xmlns:flow="http://www.springframework.org/schema/webflow-config"
+	xmlns:jee="http://www.springframework.org/schema/jee"
+	xmlns:lang="http://www.springframework.org/schema/lang"
+	xmlns:osgi="http://www.springframework.org/schema/osgi"
+	xmlns:tx="http://www.springframework.org/schema/tx"
+	xmlns:util="http://www.springframework.org/schema/util"
+	xmlns:jaxws="http://cxf.apache.org/jaxws"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.0.xsd
+		http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop-2.1.xsd
+		http://www.springframework.org/schema/webflow-config http://www.springframework.org/schema/webflow-config/spring-webflow-config-1.0.xsd
+		http://www.springframework.org/schema/jee http://www.springframework.org/schema/jee/spring-jee-2.0.xsd
+		http://www.springframework.org/schema/lang http://www.springframework.org/schema/lang/spring-lang-2.0.xsd
+		http://www.springframework.org/schema/osgi http://www.springframework.org/schema/osgi/spring-osgi.xsd
+		http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx-2.0.xsd
+		http://www.springframework.org/schema/util http://www.springframework.org/schema/util/spring-util-2.0.xsd 
+		http://cxf.apache.org/jaxws http://cxf.apache.org/schemas/jaxws.xsd">
+
+	<import resource="classpath:META-INF/cxf/cxf.xml" />
+	<import resource="classpath:META-INF/cxf/cxf-extension-soap.xml" />
+	<import resource="classpath:META-INF/cxf/cxf-servlet.xml" />		
+	<import resource="classpath:server/id/IdentityBeans.xml"/>
+	
+
+	<bean id="serviceIdentityDAOFactory" class="server.id.sync.server.ServerIdentityDAOFactory">
+		<property name="deploymentType" value="SERVICE"/>
+	</bean>
+
+	<bean id="serviceEventGenerator" class="server.id.sync.server.SEventGenerator">
+		<property name="dao" ref="Dao"/>
+		<property name="idVirtualization" ref="ldapVirtualization"/>
+	</bean>
+
+	<bean id="Dao" class="server.id.sync.server.dao.Dao">
+		<property name="serviceEntities" ref="serviceEntitiesDAO"/>		
+		<property name="cryptoService" ref="cryptoService"/>
+	</bean>
+
+	<bean id="synchronizationService" class="server.id.sync.server.SynchronizationServiceImpl">
+		<property name="serviceEntities" ref="serviceEntitiesDAO"/>		
+		<property name="daoFactory" ref="serviceIdentityDAOFactory"/>
+		<property name="dao" ref="Dao"/>
+	</bean>
+	
+	<jaxws:endpoint id="SynchronizationService"
+		implementor="#synchronizationService"
+		address="/SynchronizationServiceV1.0" wsdlLocation="classpath:SynchronizationServiceV1.wsdl"/>
+		
+	<bean id="serviceAddLocalEntryOP" class="server.id.sync.server.op.AddLocalEntry">
+		<property name="id" ref="Dao"/>
+		<property name="serviceEntities" ref="serviceEntitiesDAO"/>		
+	</bean>
+	<bean id="serviceModifyLocalEntryOP" class="server.id.sync.server.op.ModifyLocalEntry">
+		<property name="id" ref="Dao"/>
+		<property name="serviceEntities" ref="serviceEntitiesDAO"/>		
+	</bean>
+	<bean id="serviceMigrateLocalEntryOP" class="server.id.sync.server.op.MigrateLocalEntry">
+		<property name="id" ref="Dao"/>
+		<property name="serviceEntities" ref="serviceEntitiesDAO"/>		
+	</bean>
+	<bean id="serviceRenameLocalEntryOP" class="server.id.sync.server.op.RenameLocalEntry">
+		<property name="id" ref="Dao"/>
+		<property name="serviceEntities" ref="serviceEntitiesDAO"/>		
+	</bean>
+	<bean id="serviceDeleteLocalEntryOP" class="server.id.sync.server.op.DeleteLocalEntry">
+		<property name="id" ref="Dao"/>
+		<property name="serviceEntities" ref="serviceEntitiesDAO"/>		
+	</bean>
+
+	<bean id="serviceObligationMap" class="server.id.sync.op.ObligationMap">
+		<property name="obligationMap">
+			<map>
+				<entry key="POLICY_NAME" value-ref="policyNameOP"/>
+				<entry key="IGNORE_EVENT" value-ref="ignoreEventOP"/>
+				<entry key="MIGRATE_LOCAL_ENTRY" value-ref="serviceMigrateLocalEntryOP"/>
+				<entry key="ADD_LOCAL_ENTRY" value-ref="serviceAddLocalEntryOP"/>
+				<entry key="MODIFY_LOCAL_ENTRY" value-ref="serviceModifyLocalEntryOP"/>
+				<entry key="RENAME_LOCAL_ENTRY" value-ref="serviceRenameLocalEntryOP"/>
+				<entry key="RENAME_MODIFY_LOCAL_ENTRY" value-ref="serviceModifyLocalEntryOP"/>
+				<entry key="LOG_ERROR" value-ref="logErrorOP"/>
+				<entry key="DELETE_LOCAL_ENTRY" value-ref="serviceDeleteLocalEntryOP"/>
+			</map>
+		</property>
+	</bean>
+
+	<bean id="serverAttributeFinder" class="server.id.sync.server.ServerAttributeFinderModule"/>
+
+	<!-- Cases to consider: 1. Normal 2. FullSync 3. Applied at server but not at agent -->
+
+	<bean id="adServicePDPFactory" class="server.id.sync.ChangeEventPDPFactory">
+		<property name="policySetName" value="serverEventProcessingPolicyForAD" />
+		<property name="attributeModule" ref="serverAttributeFinder"/>
+		<property name="policies">
+			<list>
+				<!-- Group event not to reach server/service -->
+				<map>
+					<entry key="name" value="Group" />
+					<entry key="idObjectType" value="Group" />
+					<entry key="obligations">
+						<list>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="0" />
+								<property name="type" value="POLICY_NAME" />
+								<property name="description" value="Group" />
+							</bean>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="1" />
+								<property name="type" value="LOG_ERROR" />
+								<property name="description" value="Server/Service shoud never receive a group event" />
+							</bean>
+						</list>
+					</entry>
+				</map>
+				
+				<!-- Container event not to reach server/service -->
+				<map>
+					<entry key="name" value="Group" />
+					<entry key="idObjectType" value="Container" />
+					<entry key="obligations">
+						<list>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="0" />
+								<property name="type" value="POLICY_NAME" />
+								<property name="description" value="Container" />
+							</bean>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="1" />
+								<property name="type" value="LOG_ERROR" />
+								<property name="description" value="Server/Service shoud never receive a container event" />
+							</bean>
+						</list>
+					</entry>
+				</map>
+			
+				<!--******************** ADD BEGIN ***************************************-->
+				<!--Add event for User. Parameters: Default: existsInLocalDB == false Cases: 1-->
+				<map> <!-- Covers 1 case -->
+					<entry key="name" value="Add_User_not_ELD" />
+					<entry key="idObjectType" value="User" />
+					<entry key="changeType" value="add" />
+					<entry key="obligations">
+						<list>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="0" />
+								<property name="type" value="POLICY_NAME" />
+								<property name="description" value="Add_User_not_ELD" />
+							</bean>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="1" />
+								<property name="type" value="ADD_LOCAL_ENTRY" />
+								<property name="description" value="Create a new user" />
+							</bean>
+						</list>
+					</entry>
+				</map>
+
+				<!--******************** MODIFY BEGIN ***************************************-->
+				<!-- Modify event for Users Parameters: existsInLocalDB Cases: 2 Defaults: inScope == true -->
+				<map> <!-- Covers 1 case. Missing: -->
+					<entry key="name" value="Modify_User_ELD" />
+					<entry key="idObjectType" value="User" />
+					<entry key="changeType" value="modify" />
+					<entry key="existsInLocalDB" value="true" />
+					<entry key="obligations">
+						<list>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="0" />
+								<property name="type" value="POLICY_NAME" />
+								<property name="description" value="Modify_User_ELD" />
+							</bean>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="1" />
+								<property name="type" value="MODIFY_LOCAL_ENTRY" />
+								<property name="description" value="Update the user entry" />
+							</bean>
+						</list>
+					</entry>
+				</map>
+				<map> <!-- Covers 1 case. Missing: -->
+					<entry key="name" value="Modify_User_not_ELD" />
+					<entry key="idObjectType" value="User" />
+					<entry key="changeType" value="modify" />
+					<entry key="existsInLocalDB" value="false" />
+					<entry key="obligations">
+						<list>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="0" />
+								<property name="type" value="POLICY_NAME" />
+								<property name="description" value="Modify_User_not_ELD" />
+							</bean>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="1" />
+								<property name="type" value="LOG_ERROR" />
+								<property name="description" value="Modify user event received for a user that does not exist" />
+							</bean>
+						</list>
+					</entry>
+				</map>
+
+				<!--  ******************** RENAME_MODIFY BEGIN *************************************** -->
+				<!-- Rename_Modify event for User Parameters: existsInLocalDB Cases: 2 Defaults: -->
+				<map> <!-- Covers 1 case. Missing: -->
+					<entry key="name" value="RenameModify_User_ELD" />
+					<entry key="idObjectType" value="User" />
+					<entry key="changeType" value="rename_modify" />
+					<entry key="existsInLocalDB" value="true" />
+					<entry key="obligations">
+						<list>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="0" />
+								<property name="type" value="POLICY_NAME" />
+								<property name="description" value="RenameModify_User_ELD" />
+							</bean>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="1" />
+								<property name="type" value="MIGRATE_LOCAL_ENTRY" />
+								<property name="description" value="Migrate the user entry" />
+							</bean>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="2" />
+								<property name="type" value="RENAME_MODIFY_LOCAL_ENTRY" />
+								<property name="description" value="Update the user entry" />
+							</bean>
+						</list>
+					</entry>
+				</map>
+				<map> <!-- Covers 1 case. Missing: -->
+					<entry key="name" value="RenameModify_User_not_ELD" />
+					<entry key="idObjectType" value="User" />
+					<entry key="changeType" value="rename_modify" />
+					<entry key="existsInLocalDB" value="false" />
+					<entry key="obligations">
+						<list>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="0" />
+								<property name="type" value="POLICY_NAME" />
+								<property name="description" value="RenameModify_User_not_ELD" />
+							</bean>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="1" />
+								<property name="type" value="LOG_ERROR" />
+								<property name="description" value="Rename and Modify user event received for a user that does not exist" />
+							</bean>
+						</list>
+					</entry>
+				</map>
+
+				<!--  ******************** RENAME BEGIN *************************************** -->
+				<!-- Rename event for User Parameters: existsInLocalDB Cases: 2 Defaults: -->
+				<map> <!-- Covers 1 case. Missing: -->
+					<entry key="name" value="Rename_User_ELD" />
+					<entry key="idObjectType" value="User" />
+					<entry key="changeType" value="rename" />
+					<entry key="existsInLocalDB" value="true" />
+					<entry key="obligations">
+						<list>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="0" />
+								<property name="type" value="POLICY_NAME" />
+								<property name="description" value="Rename_User_ELD" />
+							</bean>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="1" />
+								<property name="type" value="RENAME_LOCAL_ENTRY" />
+								<property name="description" value="Move the user entry" />
+							</bean>
+						</list>
+					</entry>
+				</map>
+				<map> <!-- Covers 1 case. Missing: -->
+					<entry key="name" value="Rename_User_not_ELD" />
+					<entry key="idObjectType" value="User" />
+					<entry key="changeType" value="rename" />
+					<entry key="existsInLocalDB" value="false" />
+					<entry key="obligations">
+						<list>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="0" />
+								<property name="type" value="POLICY_NAME" />
+								<property name="description" value="Rename_User_not_ELD" />
+							</bean>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="1" />
+								<property name="type" value="LOG_ERROR" />
+								<property name="description" value="Rename user event received for a user that does not exist" />
+							</bean>
+						</list>
+					</entry>
+				</map>
+
+				<!--  ******************** DELETE BEGIN *************************************** -->
+				<!--  Delete event for User. Parameters: existsInLocalDB Cases: 2 -->
+				<map> <!-- Covers 1 case. Missing: -->
+					<entry key="name" value="Delete_User_ELD" />
+					<entry key="idObjectType" value="User" />
+					<entry key="changeType" value="delete" />
+					<entry key="existsInLocalDB" value="true" />
+					<entry key="obligations">
+						<list>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="0" />
+								<property name="type" value="POLICY_NAME" />
+								<property name="description" value="Delete_User_ELD" />
+							</bean>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="1" />
+								<property name="type" value="DELETE_LOCAL_ENTRY" />
+								<property name="description" value="Delete the user entry" />
+							</bean>
+						</list>
+					</entry>
+				</map>
+				<map> <!-- Covers 1 case. Missing: -->
+					<entry key="name" value="Delete_User_not_ELD" />
+					<entry key="idObjectType" value="User" />
+					<entry key="changeType" value="delete" />
+					<entry key="existsInLocalDB" value="false" />
+					<entry key="obligations">
+						<list>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="0" />
+								<property name="type" value="POLICY_NAME" />
+								<property name="description" value="Delete_User_not_ELD" />
+							</bean>
+							<bean class="server.id.sync.EventProcessingObligation">
+								<property name="ordinalId" value="1" />
+								<property name="type" value="IGNORE_EVENT" />
+								<property name="description" value="Ignore delete user event for a user that does not exist" />
+							</bean>
+						</list>
+					</entry>
+				</map>
+
+			</list>
+		</property>
+	</bean>
+</beans>

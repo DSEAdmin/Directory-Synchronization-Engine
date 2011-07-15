@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    Version: MPL 1.1
+  
+   The contents of this file are subject to the Mozilla Public License Version
+   1.1 (the "License"); you may not use this file except in compliance with
+    the License. You may obtain a copy of the License at
+    http://www.mozilla.org/MPL/
+  
+   Software distributed under the License is distributed on an "AS IS" basis,
+   WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+   for the specific language governing rights and limitations under the
+   License.
+  
+   The Original Code is the Directory Synchronization Engine(DSE).
+  
+   The Initial Developer of the Original Code is IronKey, Inc.
+   Portions created by the Initial Developer are Copyright (C) 2011
+   the Initial Developer. All Rights Reserved.
+  
+   Contributor(s): Shirish Rai
+  
+-->
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:tx="http://www.springframework.org/schema/tx"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans
+                           http://www.springframework.org/schema/beans/spring-beans-2.0.xsd
+                           http://www.springframework.org/schema/tx
+                           http://www.springframework.org/schema/tx/spring-tx-2.0.xsd">
+
+	<bean id="propertyConfigurer"
+		class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer">
+		<property name="location" value="config/DB.properties" />
+	</bean>
+	
+	<bean id="dataSource" class="org.apache.commons.dbcp.BasicDataSource" destroy-method="close">
+        <property name="driverClassName" value="${driverClassName}"/>
+        <property name="url" value="${url}"/>
+        <property name="username" value="${username}"/>
+        <property name="password" value="${password}"/>
+        <property name="maxActive" value="${numberOfConnections}"/>
+        <property name="maxIdle" value="${numberOfConnections}"/>
+        <property name="maxWait" value="10000"/>
+		<property name="validationQuery" value="SELECT count(*) FROM agent_connector"/>		
+		<property name="testOnBorrow" value="true" />		
+     </bean>
+     
+     <bean id="sessionFactory" class="org.springframework.orm.hibernate3.annotation.AnnotationSessionFactoryBean">
+		<property name="dataSource" ref="dataSource"/>
+		<property name="annotatedClasses">
+			<list>
+				<value>server.id.sync.agent.domain.EntityBase</value>
+				<value>server.id.sync.agent.domain.Connector</value>
+				<value>server.id.sync.agent.domain.DitVirtualizationEntry</value>
+				<value>server.id.sync.agent.domain.RoleVirtualizationEntry</value>
+				<value>server.id.sync.agent.domain.Attribute</value>
+				<value>server.id.sync.agent.domain.DirectoryObject</value>
+				<value>server.id.sync.agent.domain.Value</value>
+				<value>server.id.sync.agent.domain.Member</value>
+				<value>server.id.sync.agent.domain.Constraint</value>
+				<value>server.id.sync.agent.domain.OperationResult</value>
+			</list>
+		</property>
+		<property name="hibernateProperties">
+			<props>
+				<prop key="hibernate.dialect">${dialect}</prop>
+				<prop key="hibernate.show_sql">${showSql}</prop>
+				<prop key="hibernate.use_sql_comments">${showSql}</prop>
+				<prop key="hibernate.format_sql">${showSql}</prop>
+			</props>
+		</property>
+     </bean>
+
+	<bean id="hibernateTemplate" class="org.springframework.orm.hibernate3.HibernateTemplate">
+		<property name="sessionFactory" ref="sessionFactory"/>
+	</bean>
+
+	<!--<bean id="transactionManager" class="org.springframework.orm.hibernate3.HibernateTransactionManager">
+		<property name="sessionFactory" ref="sessionFactory"/>
+	</bean>
+
+	--><tx:annotation-driven/>
+
+	<bean id="testLocalIdStore" class="server.id.sync.agent.SyncAgentLocalIdentityStore">
+		<property name="hibernateTemplate" ref="hibernateTemplate"/>
+	</bean>
+
+	<alias alias="localIdStore" name="testLocalIdStore"/>
+	
+	<bean id="contextSource"
+		class="org.springframework.ldap.core.support.LdapContextSource">
+		<property name="urls">
+		<list>
+			<value>ldaps://1.2.3.4</value>
+		</list>
+	</property>
+	<property name="userDn" value="username"/>
+	<property name="password" value="password"/>
+	<property name="baseEnvironmentProperties">
+		<map>
+			<entry>
+				<key>
+					<value>java.naming.security.authentication</value>
+				</key>
+				<value>simple</value>
+			</entry>
+			<entry key="java.naming.ldap.factory.socket" value="server.id.net.NoVerifySSLSocketFactory"/>
+		</map>
+	</property>
+	</bean>
+	<bean id="ldapTemplate" class="org.springframework.ldap.core.LdapTemplate">
+		<constructor-arg ref="contextSource" />
+	</bean>
+	<bean id="ldapContact"
+		class="server.id.test.LDAPContactDAO">
+		<property name="ldapTemplate" ref="ldapTemplate" />
+	</bean>
+	
+	
+	<bean id="MySQLdataSource" class="org.apache.commons.dbcp.BasicDataSource" destroy-method="close">
+        <property name="driverClassName" value="${jdbc.driverClassName}"/>
+        <property name="url" value="${jdbc.url}"/>
+        <property name="username" value="${jdbc.username}"/>
+        <property name="password" value="${jdbc.password}"/>
+        <property name="maxActive" value="${jdbc.numberOfConnections}"/>
+        <property name="maxIdle" value="${jdbc.numberOfConnections}"/>
+        <property name="maxWait" value="10000"/>
+     </bean>
+
+	<!-- At last, the entity manager. -->
+	<bean id="entityManagerFactory"
+		class="org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean">
+		<property name="jpaVendorAdapter">
+			<bean class="org.springframework.orm.jpa.vendor.HibernateJpaVendorAdapter">
+				<property name="databasePlatform" value="${jdbc.dialect}"/>
+				<property name="showSql" value="${jdbc.showSql}"/>
+				<property name="generateDdl" value="${jdbc.generateDdl}"/>
+			</bean>
+		</property>
+		<property name="persistenceUnitName" value="puentities" />
+		<property name="dataSource" ref="MySQLdataSource" />	
+		
+	</bean>
+
+	<!-- A simple transaction manager for our (single) EntityManagerFactory.  -->
+	<bean id="transactionManager"
+		class="org.springframework.orm.jpa.JpaTransactionManager">
+		<property name="entityManagerFactory"
+			ref="entityManagerFactory" />
+		<property name="dataSource" ref="MySQLdataSource" />
+	</bean>
+
+
+
+	<!-- We want to use Spring's declarative @Transaction management -->
+	<tx:annotation-driven />
+
+	<!-- This makes Spring perform the magic @PersistenceContext/@PersitenceUnit injection -->
+	<bean
+		class="org.springframework.orm.jpa.support.PersistenceAnnotationBeanPostProcessor" />
+</beans>

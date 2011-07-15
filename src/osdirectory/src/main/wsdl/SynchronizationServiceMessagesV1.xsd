@@ -1,0 +1,282 @@
+<!--
+    Version: MPL 1.1
+  
+   The contents of this file are subject to the Mozilla Public License Version
+   1.1 (the "License"); you may not use this file except in compliance with
+    the License. You may obtain a copy of the License at
+    http://www.mozilla.org/MPL/
+  
+   Software distributed under the License is distributed on an "AS IS" basis,
+   WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+   for the specific language governing rights and limitations under the
+   License.
+  
+   The Original Code is Directory Synchronization Engine(DSE).
+  
+   The Initial Developer of the Original Code is IronKey, Inc..
+   Portions created by the Initial Developer are Copyright (C) 2011
+   the Initial Developer. All Rights Reserved.
+  
+   Contributor(s): Shirish Rai
+  
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+	xmlns:tns="http://messages.sync.id.server/v1.0"
+	attributeFormDefault="unqualified" elementFormDefault="unqualified"
+	targetNamespace="http://messages.sync.id.server/v1.0">
+
+	<xs:simpleType name="result">
+		<xs:restriction base="xs:string">
+			<xs:enumeration value="SUCCESS" />
+			<xs:enumeration value="PROTOCOL_ERROR" />
+			<xs:enumeration value="NO_SUCH_ACCOUNT"/>
+			<xs:enumeration value="NO_SUCH_CONNECTOR"/>
+			<xs:enumeration value="NO_SUCH_ROLE"/>
+			<xs:enumeration value="NO_SUCH_CONTAINER"/>			
+			<xs:enumeration value="OTHER_FAILURE" />
+		</xs:restriction>
+	</xs:simpleType>
+
+	<xs:simpleType name="identityStoreType">
+		<xs:restriction base="xs:string">
+			<xs:enumeration value="ACTIVE_DIRECTORY" />
+			<xs:enumeration value="ACTIVE_DIRECTORY_LDIF"></xs:enumeration>
+			<xs:enumeration value="SUN_ONE_DIRECTORY" />
+		</xs:restriction>
+	</xs:simpleType>
+
+	<xs:simpleType name="operationMode">
+		<xs:restriction base="xs:string">
+			<xs:enumeration value="ONLINE" />
+			<xs:enumeration value="MANUAL_SYNCHRONIZATION" />
+			<xs:enumeration value="AGENT_SYNCHRONIZATION" />
+		</xs:restriction>
+	</xs:simpleType>
+
+	<xs:simpleType name="changeType">
+		<xs:restriction base="xs:string">
+			<xs:enumeration value="UNKNOWN" />
+			<xs:enumeration value="DELETE" />
+			<xs:enumeration value="ADD" />
+			<xs:enumeration value="MODIFY" />
+			<xs:enumeration value="RENAME_MODIFY" />
+		</xs:restriction>
+	</xs:simpleType>
+
+	<xs:complexType name="changeDef">
+		<xs:sequence>
+			<xs:element name="changeType" type="tns:changeType" />
+			<xs:element maxOccurs="unbounded" minOccurs="0" name="attributes"
+				type="tns:attribute" />
+		</xs:sequence>
+	</xs:complexType>
+
+	<xs:complexType name="attribute">
+		<xs:sequence>
+			<xs:element name="name" type="xs:string" />
+			<xs:choice>
+				<xs:element maxOccurs="unbounded" minOccurs="0" name="binaryValues"
+					nillable="true" type="xs:base64Binary" />
+				<xs:element maxOccurs="unbounded" minOccurs="0" name="stringValues"
+					nillable="true" type="xs:string"/>
+			</xs:choice>
+		</xs:sequence>
+	</xs:complexType>
+
+	<xs:complexType name="changeRequest">
+		<xs:sequence>
+			<xs:element name="connectorUuid" type="xs:base64Binary" />
+			<xs:element name="connectorMajorVersion" type="xs:long" />
+			<xs:element name="connectorMinorVersion" type="xs:long" />
+			<xs:element name="changeNumber" type="xs:long" />
+			<xs:element name="changeFragmentNumber" type="xs:long" />
+			<xs:element name="moreFragments" type="xs:boolean" />
+			<xs:element name="delta" type="xs:boolean" />
+			<xs:element maxOccurs="unbounded" name="changeDefs" type="tns:changeDef" />
+		</xs:sequence>
+		<xs:attribute name="version" type="xs:long" use="required" />
+	</xs:complexType>
+
+	<xs:complexType name="changeResponse">
+		<xs:sequence>
+			<xs:element name="connectorUuid" type="xs:base64Binary" />
+			<xs:element name="connectorMajorVersion" type="xs:long" />
+			<xs:element name="connectorMinorVersion" type="xs:long" />
+			<xs:element name="changeNumber" type="xs:long" />
+			<xs:element name="changeFragmentNumber" type="xs:long" />
+			<xs:element name="result" type="tns:result" />
+			<xs:element minOccurs="0" name="description" type="xs:string" />
+		</xs:sequence>
+		<xs:attribute name="version" type="xs:long" use="required" />
+	</xs:complexType>
+
+	<xs:complexType name="roleVirtualizationEntry">
+		<xs:sequence>
+			<xs:element minOccurs="1" maxOccurs="1" name="uuid" type="xs:base64Binary"/>
+			<xs:element minOccurs="1" maxOccurs="1" name="localRole" type="xs:string" />
+			<xs:element minOccurs="1" maxOccurs="1" name="localRoleUuid" type="xs:base64Binary"/>
+			<xs:element minOccurs="1" maxOccurs="1" name="remoteRole" type="xs:string" />
+			<xs:element minOccurs="1" maxOccurs="1" name="remoteRoleUuid" type="xs:base64Binary"/>
+		</xs:sequence>
+	</xs:complexType>
+
+	<xs:complexType name="ditVirtualizationEntry">
+		<xs:sequence>
+			<xs:element minOccurs="1" maxOccurs="1" name="ordinalId" type="xs:long" />
+			<xs:element minOccurs="1" maxOccurs="1" name="uuid" type="xs:base64Binary"/>
+			<xs:element minOccurs="1" maxOccurs="1" name="localContainer" type="xs:string" />
+			<xs:element minOccurs="1" maxOccurs="1" name="localContainerUuid" type="xs:base64Binary"/>
+			<xs:element minOccurs="1" maxOccurs="1" name="remoteContainer" type="xs:string" />
+			<xs:element minOccurs="1" maxOccurs="1" name="remoteContainerUuid" type="xs:base64Binary"/>
+		</xs:sequence>
+	</xs:complexType>
+
+	<xs:complexType name="connectorConfiguration">
+		<xs:sequence>
+			<xs:element name="majorVersion" type="xs:long" />
+			<xs:element name="minorVersion" type="xs:long" />
+			<xs:element name="type" type="tns:identityStoreType" />
+			<xs:element name="connectorUuid" type="xs:base64Binary"/>
+			<xs:element name="name" type="xs:string" />
+			<xs:element name="Admin" type="xs:string"/>
+			<xs:element name="mode" type="tns:operationMode" />
+			<xs:element name="autoCreateContainers" type="xs:boolean" />
+			<xs:element name="syncSchedule" type="xs:string"/>
+			<xs:element name="timeZoneID" type="xs:string"/>
+			<xs:element maxOccurs="unbounded" minOccurs="0" name="rvEntries"
+				type="tns:roleVirtualizationEntry" />
+			<xs:element maxOccurs="unbounded" minOccurs="0" name="dvEntries"
+				type="tns:ditVirtualizationEntry" />
+		</xs:sequence>
+	</xs:complexType>
+
+	<xs:complexType name="connectorStatus">
+		<xs:sequence>
+			<xs:element name="lastSuccessfulUpdate" type="xs:long" />
+			<xs:element name="lastConnToResource" type="xs:long" />
+			<xs:element minOccurs="0" name="errorFromResource" type="xs:string" />
+		</xs:sequence>
+	</xs:complexType>
+
+	<xs:complexType name="connectorInformation">
+		<xs:sequence>
+			<xs:element name="connectorUuid" type="xs:base64Binary" />
+			<xs:element name="connectorMajorVersion" type="xs:long" />
+			<xs:element name="connectorMinorVersion" type="xs:long" />
+			<xs:element name="status" type="tns:connectorStatus" />
+		</xs:sequence>
+	</xs:complexType>
+
+	<xs:complexType name="connectorStatusRequest">
+		<xs:sequence>
+			<xs:element maxOccurs="1" minOccurs="0"
+				name="connectorInformation" type="tns:connectorInformation" />
+		</xs:sequence>
+		<xs:attribute name="version" type="xs:long" use="required" />
+	</xs:complexType>
+
+	<xs:complexType name="connectorStatusResponse">
+		<xs:sequence>
+			<xs:element name="connectorUuid" minOccurs="0" type="xs:base64Binary" />
+			<xs:element name="connectorMajorVersion" minOccurs="0" type="xs:long" />
+			<xs:element name="connectorMinorVersion" minOccurs="0" type="xs:long" />
+			<xs:element minOccurs="1" name="result" type="tns:result" />
+			<xs:element minOccurs="0" maxOccurs="1" name="errorString" type="xs:string" />
+		</xs:sequence>
+		<xs:attribute name="version" type="xs:long" use="required" />
+	</xs:complexType>
+
+	<xs:complexType name="connectorConfigurationRequest">
+		<xs:sequence>
+			<xs:element minOccurs="1" maxOccurs="1" name="connectorConfiguration" 
+				type="tns:connectorConfiguration"/>	
+		</xs:sequence>
+		<xs:attribute name="version" type="xs:long" use="required" />
+	</xs:complexType>
+
+	<xs:complexType name="connectorConfigurationResponse">
+		<xs:sequence>
+			<xs:element minOccurs="1" name="result" type="tns:result" />
+			<xs:element minOccurs="0" maxOccurs="1" name="errorString" type="xs:string" />
+		</xs:sequence>
+		<xs:attribute name="version" type="xs:long" use="required" />		
+	</xs:complexType>
+
+	<xs:complexType name="roleRequest">
+		<xs:attribute name="version" type="xs:long" use="required" />		
+	</xs:complexType>
+	
+	<xs:complexType name="role">
+		<xs:sequence>
+			<xs:element name="name" type="xs:string"/>
+			<xs:element name="uuid" type="xs:base64Binary"/>
+		</xs:sequence>
+	</xs:complexType>
+
+	<xs:complexType name="roleResponse">
+		<xs:sequence>
+			<xs:element minOccurs="1" name="result" type="tns:result" />
+			<xs:element minOccurs="0" maxOccurs="1" name="errorString" type="xs:string" />
+			<xs:element minOccurs="0" maxOccurs="unbounded" name="role" type="tns:role"/>
+		</xs:sequence>
+		<xs:attribute name="version" type="xs:long" use="required" />		
+	</xs:complexType>
+
+	<xs:complexType name="containerRequest">
+		<xs:attribute name="version" type="xs:long" use="required" />		
+	</xs:complexType>
+
+	<xs:complexType name="container">
+		<xs:sequence>
+			<xs:element name="name" type="xs:string"/>
+			<xs:element name="uuid" type="xs:base64Binary"/>
+			<xs:element nillable="true" name="parent" type="xs:base64Binary"/>
+		</xs:sequence>
+	</xs:complexType>
+
+	<xs:complexType name="containerResponse">
+		<xs:sequence>
+			<xs:element minOccurs="1" name="result" type="tns:result" />
+			<xs:element minOccurs="0" maxOccurs="1" name="errorString" type="xs:string" />
+			<xs:element minOccurs="0" maxOccurs="unbounded" name="container" type="tns:container"/>
+		</xs:sequence>
+		<xs:attribute name="version" type="xs:long" use="required" />		
+	</xs:complexType>
+	
+	<xs:complexType name="userList">
+		<xs:sequence>
+			<xs:element minOccurs="0" maxOccurs="unbounded" name="uuid" type="xs:base64Binary"/>
+		</xs:sequence>
+	</xs:complexType>
+	
+	<xs:complexType name="fullSyncMetaDataRequest">
+		<xs:sequence>
+			<xs:element name="connectorUuid" type="xs:base64Binary" />
+			<xs:element name="connectorMajorVersion" type="xs:long" />
+			<xs:element name="connectorMinorVersion" type="xs:long" />
+			<xs:element minOccurs="1" maxOccurs="1" name="userList" type="tns:userList"/>
+		</xs:sequence>
+		<xs:attribute name="version" type="xs:long" use="required" />		
+	</xs:complexType>
+
+	<xs:complexType name="fullSyncMetaDataResponse">
+		<xs:sequence>
+			<xs:element minOccurs="1" name="result" type="tns:result" />
+			<xs:element minOccurs="0" maxOccurs="1" name="errorString" type="xs:string" />
+		</xs:sequence>
+		<xs:attribute name="version" type="xs:long" use="required" />		
+	</xs:complexType>
+
+	<xs:element name="changeRequest" nillable="false" type="tns:changeRequest" />
+	<xs:element name="changeResponse" nillable="false" type="tns:changeResponse" />
+	<xs:element name="connectorStatusRequest" nillable="false" type="tns:connectorStatusRequest" />
+	<xs:element name="connectorStatusResponse" nillable="false" type="tns:connectorStatusResponse" />
+	<xs:element name="connectorConfigurationRequest" nillable="false" type="tns:connectorConfigurationRequest"/>
+	<xs:element name="connectorConfigurationResponse" nillable="false" type="tns:connectorConfigurationResponse"/>
+	<xs:element name="roleRequest" nillable="false" type="tns:roleRequest"/>
+	<xs:element name="roleResponse" nillable="false" type="tns:roleResponse"/>
+	<xs:element name="containerRequest" nillable="false" type="tns:containerRequest"/>
+	<xs:element name="containerResponse" nillable="false" type="tns:containerResponse"/>
+	<xs:element name="fullSyncMetaDataRequest" nillable="false" type="tns:fullSyncMetaDataRequest"/>
+	<xs:element name="fullSyncMetaDataResponse" nillable="false" type="tns:fullSyncMetaDataResponse"/>	
+</xs:schema>
